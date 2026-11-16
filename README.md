@@ -1,4 +1,4 @@
-[![Molecule](https://github.com/iamenr0s/ansible-role-mount-hardening/actions/workflows/molecule.yml/badge.svg)](https://github.com/iamenr0s/ansible-role-mount-hardening/actions/workflows/molecule.yml) ![Ansible Role](https://img.shields.io/ansible/role/d/iamenr0s/ansible_role_mount_hardening) [![CodeFactor](https://www.codefactor.io/repository/github/iamenr0s/ansible-role-mount-hardening/badge)](https://www.codefactor.io/repository/github/iamenr0s/ansible-role-mount-hardening)
+[![Molecule](https://github.com/iamenr0s/ansible-role-mount-hardening/actions/workflows/molecule.yml/badge.svg)](https://github.com/iamenr0s/ansible-role-mount-hardening/actions/workflows/molecule.yml) ![Ansible Role](https://img.shields.io/ansible/role/d/iamenr0s/mount_hardening) [![CodeFactor](https://www.codefactor.io/repository/github/iamenr0s/ansible-role-mount-hardening/badge)](https://www.codefactor.io/repository/github/iamenr0s/ansible-role-mount-hardening)
 
 # Ansible Role: Mount Hardening
 
@@ -102,4 +102,4 @@ This project is licensed under the [MIT License](LICENSE).
 
 Author: iamenr0s
 
-Galaxy: `iamenr0s.ansible_role_mount_hardening`
+Galaxy: `iamenr0s.mount_hardening`
