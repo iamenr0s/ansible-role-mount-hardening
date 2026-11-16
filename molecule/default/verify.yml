@@ -1,0 +1,22 @@
+---
+- name: Verify
+  hosts: all
+  become: true
+  gather_facts: false
+  tasks:
+    - name: Running /dev/shm options
+      ansible.builtin.command: findmnt --noheadings --output OPTIONS /dev/shm
+      register: __run
+      changed_when: false
+
+    - name: Read the fstab entry
+      ansible.builtin.command: grep -E '^tmpfs[[:space:]]+/dev/shm[[:space:]]' /etc/fstab
+      register: __tab
+      changed_when: false
+
+    - name: Both carry nodev, nosuid, noexec and noatime
+      ansible.builtin.assert:
+        that:
+          - "['nodev', 'nosuid', 'noexec', 'noatime'] | difference(__run.stdout.split(',')) | length == 0"
+          - "['nodev', 'nosuid', 'noexec', 'noatime'] | difference((__tab.stdout.split()[3]).split(',')) | length == 0"
+        quiet: true

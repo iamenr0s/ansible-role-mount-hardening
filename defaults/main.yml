@@ -1,0 +1,20 @@
+---
+# --- Shared collection variables ---
+linux_hardening_mode: audit                    # audit (read-only) | remediate
+linux_hardening_confirm_remediation: false     # must be true for any change
+linux_hardening_backup: true
+linux_hardening_verify: true
+linux_hardening_fail_on_error: true
+
+# --- mount_hardening (owner of /etc/fstab and mount options) ---
+linux_hardening_mount_enabled: true
+linux_hardening_mount_fstab: /etc/fstab
+
+# Add or override managed mount points {path: [required options]}. The built-in set is in vars/main.yml.
+linux_hardening_mount_extra: {}
+# Mount points to leave alone.
+linux_hardening_mount_exclude: []
+
+# /tmp is not a separate mount on many systems (EL). Allow mounting a tmpfs over it (and /dev/shm if missing):
+# it uses RAM (default: half) and hides what is currently in /tmp until the next reboot clears it.
+linux_hardening_mount_create_tmpfs: false

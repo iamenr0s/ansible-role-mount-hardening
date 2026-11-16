@@ -1,0 +1,28 @@
+---
+- name: Converge (audit only)
+  hosts: all
+  become: true
+  gather_facts: true
+  tasks:
+    - name: Checksum the fstab
+      ansible.builtin.stat:
+        path: /etc/fstab
+      register: __before
+
+    - name: Audit
+      ansible.builtin.include_role:
+        name: "{{ playbook_dir }}/../.."  # noqa: role-name[path]
+      vars:
+        linux_hardening_mode: audit
+        linux_hardening_fail_on_error: false
+
+    - name: Findings are a list
+      ansible.builtin.assert:
+        that: linux_hardening_mount_findings is sequence
+        quiet: true
+
+    - name: The fstab did not change
+      ansible.builtin.stat:
+        path: /etc/fstab
+      register: __after
+      failed_when: __after.stat.exists != __before.stat.exists or (__after.stat.exists and __after.stat.checksum != __before.stat.checksum)

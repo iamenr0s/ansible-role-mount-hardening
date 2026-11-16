@@ -1,0 +1,14 @@
+---
+# Our own selection from common hardening guidance. NOT a verified CIS mapping (all entries unmapped).
+# A path that is not a separate mount is only reported (it needs a partition), except the tmpfs paths below.
+__linux_hardening_mount_base:
+  /tmp: [nodev, nosuid, noexec]
+  /var/tmp: [nodev, nosuid, noexec]
+  /dev/shm: [nodev, nosuid, noexec]
+  /home: [nodev, nosuid]
+  /var/log: [nodev, nosuid, noexec]
+  /var/log/audit: [nodev, nosuid, noexec]
+# Option -> the option that undoes it (an fstab line is read left to right, "defaults" re-enables all of them).
+__linux_hardening_mount_opposite: {nodev: dev, nosuid: suid, noexec: exec, ro: rw}
+# Paths the role may create as a tmpfs (with linux_hardening_mount_create_tmpfs).
+__linux_hardening_mount_tmpfs_paths: [/tmp, /dev/shm]

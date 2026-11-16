@@ -1,0 +1,17 @@
+---
+# A container's /dev/shm is already noexec, so require noatime too to have something to change. The real /tmp,
+# fstab and reboot proof is the vagrant scenario.
+- name: Converge (remediate /dev/shm)
+  hosts: all
+  become: true
+  gather_facts: true
+  tasks:
+    - name: Remediate
+      ansible.builtin.include_role:
+        name: "{{ playbook_dir }}/../.."  # noqa: role-name[path]
+      vars:
+        linux_hardening_mode: remediate
+        linux_hardening_confirm_remediation: true
+        linux_hardening_mount_extra:
+          /dev/shm: [nodev, nosuid, noexec, noatime]
+        linux_hardening_mount_exclude: [/tmp, /var/tmp, /home, /var/log, /var/log/audit]

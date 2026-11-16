@@ -1,0 +1,29 @@
+---
+- name: Check the running mounts and the fstab
+  hosts: all
+  become: true
+  gather_facts: false
+  vars:
+    __paths: [/tmp, /dev/shm, /srv/data]
+  tasks:
+    - name: Running options
+      ansible.builtin.command: "findmnt --noheadings --output OPTIONS {{ item }}"
+      loop: "{{ __paths }}"
+      register: __run
+      changed_when: false
+
+    - name: Read the fstab entries
+      ansible.builtin.command: "awk '$2 == \"{{ item }}\" {print $4}' /etc/fstab"
+      loop: "{{ __paths }}"
+      register: __tab
+      changed_when: false
+
+    - name: Every path has nodev, nosuid and noexec, running and persisted
+      ansible.builtin.assert:
+        that:
+          - "['nodev', 'nosuid', 'noexec'] | difference(__run.results[idx].stdout.split(',')) | length == 0"
+          - "['nodev', 'nosuid', 'noexec'] | difference(__tab.results[idx].stdout.split(',')) | length == 0"
+        quiet: true
+      loop: "{{ __paths }}"
+      loop_control:
+        index_var: idx

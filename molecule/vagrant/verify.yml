@@ -1,0 +1,39 @@
+---
+# The fstab edit is only proven once the machine boots from it, so check, reboot, and check again.
+- name: Check before the reboot
+  ansible.builtin.import_playbook: check.yml
+
+- name: Reboot from the edited fstab
+  hosts: all
+  become: true
+  gather_facts: false
+  tasks:
+    # The delay matters: polling sshd while the VM is still booting never gets through authentication on this
+    # 1-CPU box (reproduced with the fstab edits removed, so it is not the role), but waiting first works.
+    - name: Reboot
+      ansible.builtin.reboot:
+        reboot_timeout: 600
+        post_reboot_delay: 45
+        connect_timeout: 30
+
+- name: Check after the reboot
+  ansible.builtin.import_playbook: check.yml
+
+- name: Audit what is left
+  hosts: all
+  become: true
+  gather_facts: true
+  tasks:
+    - name: Audit sees only what needs a partition
+      ansible.builtin.include_role:
+        name: "{{ playbook_dir }}/../.."  # noqa: role-name[path]
+      vars:
+        linux_hardening_mode: audit
+        linux_hardening_fail_on_error: false
+        linux_hardening_mount_extra:
+          /srv/data: [nodev, nosuid, noexec]
+
+    - name: Nothing fixable is left
+      ansible.builtin.assert:
+        that: linux_hardening_mount_findings | selectattr('fixable') | list | length == 0
+        quiet: true
