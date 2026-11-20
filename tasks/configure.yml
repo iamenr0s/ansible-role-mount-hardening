@@ -1,10 +1,10 @@
 ---
-- name: Gather mount state
+- name: configure | Gather mount state
   ansible.builtin.include_tasks: facts.yml
 
 # fstab first: if the edit is refused nothing has been remounted. The edit is checked with findmnt --verify,
 # unless the fstab already fails that check before we touch it (then there is no baseline to compare with).
-- name: Write the fstab entries
+- name: configure | Write the fstab entries
   ansible.builtin.lineinfile:
     path: "{{ linux_hardening_mount_fstab }}"
     regexp: "^\\s*\\S+\\s+{{ item.path | regex_escape }}\\s"
@@ -18,12 +18,12 @@
     label: "{{ item.path }}"
   register: __lh_mount_fstab_edit
 
-- name: Make systemd read the new fstab  # noqa: no-handler
+- name: configure | Make systemd read the new fstab  # noqa: no-handler
   ansible.builtin.systemd_service:
     daemon_reload: true
   when: __lh_mount_fstab_edit is changed
 
-- name: Apply the options to the running mounts
+- name: configure | Apply the options to the running mounts
   ansible.builtin.command: "mount -o remount,{{ item.remount }} {{ item.path }}"  # noqa: command-instead-of-module
   loop: "{{ __lh_mount_plan | selectattr('remount') | list }}"
   loop_control:
@@ -32,7 +32,7 @@
 
 # raw, not command: Ansible unpacks its own module payload under /tmp, and a tmpfs mounted over /tmp hides it
 # from the module that is still running (it then fails to return its result).
-- name: Mount the new tmpfs
+- name: configure | Mount the new tmpfs
   ansible.builtin.raw: "mount {{ item.path }}"
   loop: "{{ __lh_mount_plan | selectattr('mount_new') | list }}"
   loop_control:
