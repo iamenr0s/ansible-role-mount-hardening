@@ -1,31 +1,31 @@
 ---
 # Read-only. Sets __lh_mount_plan [{path, fstab_line, remount, mount_new}] and __lh_mount_findings.
-- name: Select the managed mount points
+- name: facts | Select the managed mount points
   ansible.builtin.set_fact:
     __lh_mount_wanted: >-
       {{ dict(__linux_hardening_mount_base | combine(linux_hardening_mount_extra) | dict2items
               | rejectattr('key', 'in', linux_hardening_mount_exclude) | list | items2dict) }}
 
-- name: Stat the mount points
+- name: facts | Stat the mount points
   ansible.builtin.stat:
     path: "{{ item }}"
     get_checksum: false
   loop: "{{ __lh_mount_wanted.keys() | list }}"
   register: __lh_mount_stats
 
-- name: List the running mounts
+- name: facts | List the running mounts
   ansible.builtin.command: findmnt --json --list --output TARGET,SOURCE,FSTYPE,OPTIONS
   register: __lh_mount_findmnt
   changed_when: false
   check_mode: false
 
-- name: Read the fstab
+- name: facts | Read the fstab
   ansible.builtin.slurp:
     src: "{{ linux_hardening_mount_fstab }}"
   register: __lh_mount_fstab_raw
   failed_when: false
 
-- name: Check the fstab as it is now
+- name: facts | Check the fstab as it is now
   ansible.builtin.command: "findmnt --verify --tab-file {{ linux_hardening_mount_fstab }}"
   register: __lh_mount_fstab_check
   changed_when: false
@@ -33,7 +33,7 @@
   check_mode: false
   when: __lh_mount_fstab_raw.content is defined
 
-- name: Compare with desired state
+- name: facts | Compare with desired state
   ansible.builtin.set_fact:
     __lh_mount_result: >-
       {%- macro has(opts, want, opposite) -%}
@@ -114,7 +114,7 @@
       {%- endfor -%}
       {{ {'plan': plan, 'findings': out} | to_json }}
 
-- name: Normalise result
+- name: facts | Normalise result
   ansible.builtin.set_fact:
     __lh_mount_plan: "{{ (__lh_mount_result | from_json).plan }}"
     __lh_mount_findings: "{{ (__lh_mount_result | from_json).findings }}"

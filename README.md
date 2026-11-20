@@ -46,7 +46,7 @@ Variables use the collection-wide `linux_hardening_*` prefix (shared with siblin
 - Mounting a tmpfs over `/tmp` uses RAM (tmpfs default: half) and **hides the current contents of `/tmp`** until the next reboot. That is why it needs its own switch. (Ansible itself unpacks modules under `/tmp`, so this one step runs with `raw`, otherwise it would crash its own module.)
 
 ## Modes
-`audit` (default) is read-only and sets `linux_hardening_mount_findings` (`key, expected, actual, fixable`). `remediate` needs `linux_hardening_confirm_remediation: true`; afterwards only fixable findings fail the run.
+`audit` (default) is read-only and sets `linux_hardening_mount_findings` (`key, expected, actual, fixable`). `remediate` needs `linux_hardening_confirm_remediation: true`; afterwards only fixable findings fail the run. With `--check` it previews the fstab change and skips the re-audit.
 
 ## Example
 ```yaml
