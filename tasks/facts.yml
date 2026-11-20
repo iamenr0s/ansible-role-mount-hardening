@@ -3,8 +3,8 @@
 - name: facts | Select the managed mount points
   ansible.builtin.set_fact:
     __lh_mount_wanted: >-
-      {{ dict(__linux_hardening_mount_base | combine(linux_hardening_mount_extra) | dict2items
-              | rejectattr('key', 'in', linux_hardening_mount_exclude) | list | items2dict) }}
+      {{ __linux_hardening_mount_base | combine(linux_hardening_mount_extra) | dict2items
+         | rejectattr('key', 'in', linux_hardening_mount_exclude) | items2dict }}
 
 - name: facts | Stat the mount points
   ansible.builtin.stat:

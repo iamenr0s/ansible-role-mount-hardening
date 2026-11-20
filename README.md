@@ -2,9 +2,17 @@
 
 # Ansible Role: Mount Hardening
 
-> Standalone copy of `mount_hardening` from the [iamenr0s.linux_hardening](https://github.com/iamenr0s/linux-hardening-collection) collection. Variables keep the collection-wide `linux_hardening_*` prefix.
+This role audits and hardens mount options (`nodev`, `nosuid`, `noexec`) on Debian/Ubuntu, RHEL/AlmaLinux/RockyLinux and Fedora servers. It owns `/etc/fstab` mount options and the running mounts for a short list of paths; it never partitions or reformats anything and never reboots.
 
-Audit-first mount options. It owns `/etc/fstab` mount options and the running mounts for a short list of paths; it never partitions or reformats anything and never reboots.
+Features
+--------
+- Audit mode by default: read-only, and reports every deviation. Changes need `linux_hardening_confirm_remediation: true`.
+- Checks both the running mount (`findmnt`) and the persisted `/etc/fstab` entry.
+- Remounts with the missing options and rewrites the fstab entry, keeping its other fields and options.
+- Edits the fstab before any remount and checks it with `findmnt --verify`.
+- Reports paths that need a separate partition but never creates one; a tmpfs over `/tmp` is opt-in.
+- Backs up `/etc/fstab` before changing it.
+- The only role in the `iamenr0s.linux_hardening` collection that writes `/etc/fstab`; file permissions belong to `filesystem_hardening`.
 
 ## What it checks
 For each managed path the role requires a set of options, both **running** (`findmnt`) and **persisted** (`/etc/fstab`):
@@ -28,6 +36,9 @@ Add or change entries with `linux_hardening_mount_extra: {/srv/data: [nodev, nos
 
 A path that does not exist and is not mounted is silently skipped.
 
+## Variable names
+Variables use the collection-wide `linux_hardening_*` prefix (shared with sibling roles) rather than `mount_hardening_*`. Full list: `defaults/main.yml` and `meta/argument_specs.yml`. The built-in path list is in `vars/main.yml`.
+
 ## Safety
 - The fstab is edited **before** anything is remounted, so a refused edit leaves the running system untouched.
 - The edit is checked with `findmnt --verify`, and the fstab is backed up (`linux_hardening_backup`). If the fstab already fails that check, validation is skipped (there is nothing to compare with) rather than blocking every change.
@@ -35,13 +46,16 @@ A path that does not exist and is not mounted is silently skipped.
 - Mounting a tmpfs over `/tmp` uses RAM (tmpfs default: half) and **hides the current contents of `/tmp`** until the next reboot. That is why it needs its own switch. (Ansible itself unpacks modules under `/tmp`, so this one step runs with `raw`, otherwise it would crash its own module.)
 
 ## Modes
-`audit` (default) is read-only and sets `linux_hardening_mount_findings` (`key, expected, actual, fixable`). `remediate` needs `linux_hardening_confirm_remediation: true`; afterwards only fixable findings fail the run.
+`audit` (default) is read-only and sets `linux_hardening_mount_findings` (`key, expected, actual, fixable`). `remediate` needs `linux_hardening_confirm_remediation: true`; afterwards only fixable findings fail the run. With `--check` it previews the fstab change and skips the re-audit.
+
+Idempotent: yes (a second run reports no changes). Atomic: no (the fstab is edited first, then each path is remounted; see Safety).
 
 ## Example
 ```yaml
 - hosts: all
+  become: true
   roles:
-    - role: iamenr0s.linux_hardening.mount_hardening
+    - role: iamenr0s.mount_hardening
       vars:
         linux_hardening_mode: remediate
         linux_hardening_confirm_remediation: true
@@ -50,7 +64,7 @@ A path that does not exist and is not mounted is silently skipped.
 ```
 
 ## Verification
-Container scenarios `default` (remediates `/dev/shm`, requiring an extra `noatime` because a container's `/dev/shm` is already `noexec`; checks the fstab line and the running options), `audit` (read-only, fstab unchanged), `refuse`. **VM scenario `vagrant`** (libvirt; `sg libvirt -c "molecule test -s vagrant"`; box `MOLECULE_VAGRANT_BOX`, default `almalinux/9`): creates a real loop-mounted ext4 with its own fstab line, remediates with `/tmp` created as a tmpfs, checks idempotence, then **reboots** and checks again that the machine boots from the edited fstab with the options in place. Tested: AlmaLinux 9 VM (`/tmp` not a mount, so the tmpfs is created) and Debian 13 VM (`/tmp` is a systemd tmpfs outside the fstab, so an entry is added), both idempotent and reboot-proven; AlmaLinux 9, Debian 13, Ubuntu 24.04 and Fedora 44 containers. CI runs the container scenarios only. The scenario's reboot uses `post_reboot_delay: 45`: polling sshd during early boot never got through authentication on the 1-CPU test VM (reproduced with the role's changes removed).
+Container scenarios `default` (remediates `/dev/shm`, requiring an extra `noatime` because a container's `/dev/shm` is already `noexec`; checks the fstab line and the running options), `audit` (read-only, fstab unchanged), `refuse`. **VM scenario `vagrant`** (libvirt; `sg libvirt -c "molecule test -s vagrant"`; box `MOLECULE_VAGRANT_BOX`, default `almalinux/9`): creates a real loop-mounted ext4 with its own fstab line, remediates with `/tmp` created as a tmpfs, checks idempotence, then **reboots** and checks again that the machine boots from the edited fstab with the options in place. Tested: AlmaLinux 9 VM (`/tmp` not a mount, so the tmpfs is created) and Debian 13 VM (`/tmp` is a systemd tmpfs outside the fstab, so an entry is added), both idempotent and reboot-proven; AlmaLinux 9, Debian 13, Ubuntu 24.04 and Fedora 44 containers. CI runs the container scenarios only, on the matrix AlmaLinux 8–10, Rocky 8–10, Fedora 42–44, Debian 12–13, Ubuntu 22.04/24.04. The scenario's reboot uses `post_reboot_delay: 45`: polling sshd during early boot never got through authentication on the 1-CPU test VM (reproduced with the role's changes removed).
 
 ## Rollback
 Restore the backup (`/etc/fstab.<timestamp>~`), then `mount -o remount,exec,suid,dev <path>`.

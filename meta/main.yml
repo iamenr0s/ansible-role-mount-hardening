@@ -5,7 +5,9 @@ dependencies: []
 galaxy_info:
   role_name: mount_hardening
   author: iamenr0s
-  description: Audit-first mount options (nodev/nosuid/noexec) in /etc/fstab and on the running system (iamenr0s.linux_hardening).
+  description: >-
+    Audit-first mount options (nodev/nosuid/noexec) in /etc/fstab and on the running system
+    (iamenr0s.linux_hardening).
   license: MIT
   min_ansible_version: "2.16"
   platforms:

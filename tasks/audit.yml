@@ -16,8 +16,7 @@
     msg: "mount_hardening found {{ __lh_mount_blocking | length }} deviation(s)."
   vars:
     __lh_mount_blocking: >-
-      {{ linux_hardening_mount_findings
-         if (linux_hardening_fail_on_error | bool) and not (__lh_mount_audit_fatal | default(false))
-         else linux_hardening_mount_findings | selectattr('fixable') | list
-         if (__lh_mount_audit_fatal | default(false)) else [] }}
+      {{ (linux_hardening_mount_findings | selectattr('fixable') | list)
+         if (__lh_mount_audit_fatal | default(false))
+         else (linux_hardening_mount_findings if linux_hardening_fail_on_error | bool else []) }}
   when: __lh_mount_blocking | length > 0
