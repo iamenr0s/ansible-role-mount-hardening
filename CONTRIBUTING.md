@@ -1,6 +1,6 @@
 # Contributing
 
-Thanks for taking the time to contribute to `iamenr0s.ansible_role_mount_hardening`!
+Thanks for taking the time to contribute to `iamenr0s.mount_hardening`!
 
 ## Getting started
 
