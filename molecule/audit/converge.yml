@@ -25,4 +25,6 @@
       ansible.builtin.stat:
         path: /etc/fstab
       register: __after
-      failed_when: __after.stat.exists != __before.stat.exists or (__after.stat.exists and __after.stat.checksum != __before.stat.checksum)
+      failed_when: >-
+        __after.stat.exists != __before.stat.exists
+        or (__after.stat.exists and __after.stat.checksum != __before.stat.checksum)
