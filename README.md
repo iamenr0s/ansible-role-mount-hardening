@@ -48,6 +48,8 @@ Variables use the collection-wide `linux_hardening_*` prefix (shared with siblin
 ## Modes
 `audit` (default) is read-only and sets `linux_hardening_mount_findings` (`key, expected, actual, fixable`). `remediate` needs `linux_hardening_confirm_remediation: true`; afterwards only fixable findings fail the run. With `--check` it previews the fstab change and skips the re-audit.
 
+Idempotent: yes (a second run reports no changes). Atomic: no (the fstab is edited first, then each path is remounted; see Safety).
+
 ## Example
 ```yaml
 - hosts: all
