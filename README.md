@@ -50,6 +50,21 @@ Variables use the collection-wide `linux_hardening_*` prefix (shared with siblin
 
 Idempotent: yes (a second run reports no changes). Atomic: no (the fstab is edited first, then each path is remounted; see Safety).
 
+## Role Variables
+
+| Variable | Type | Default | Description |
+|---|---|---|---|
+| `linux_hardening_mode` | str | `audit` | audit is read-only. Choices: `audit`, `remediate`. |
+| `linux_hardening_confirm_remediation` | bool | `false` | Must be true before remediate changes anything. |
+| `linux_hardening_backup` | bool | `true` | Back up the fstab before it changes. |
+| `linux_hardening_verify` | bool | `true` | Re-audit after remediation. |
+| `linux_hardening_fail_on_error` | bool | `true` | Fail the play when audit finds deviations. |
+| `linux_hardening_mount_enabled` | bool | `true` | Run the role. |
+| `linux_hardening_mount_fstab` | path | `/etc/fstab` | The fstab to manage. |
+| `linux_hardening_mount_extra` | dict | `{}` | Extra or overriding mount points {path: [options]}. |
+| `linux_hardening_mount_exclude` | list of path | `[]` | Mount points to leave alone. |
+| `linux_hardening_mount_create_tmpfs` | bool | `false` | Allow mounting a tmpfs over /tmp (or /dev/shm) when it is not a mount. |
+
 ## Example
 ```yaml
 - hosts: all

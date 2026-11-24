@@ -33,88 +33,17 @@
   check_mode: false
   when: __lh_mount_fstab_raw.content is defined
 
+# The comparison and the fix plan live in filter_plugins/mount_hardening.py (unit-tested in tests/unit).
 - name: facts | Compare with desired state
   ansible.builtin.set_fact:
+    __lh_mount_plan: "{{ __lh_mount_result.plan }}"
+    __lh_mount_findings: "{{ __lh_mount_result.findings }}"
+  vars:
     __lh_mount_result: >-
-      {%- macro has(opts, want, opposite) -%}
-      {%- set s = namespace(on=false) -%}
-      {%- set undo = opposite.get(want, '') -%}
-      {%- for o in opts -%}
-      {%- if o == want -%}{%- set s.on = true -%}
-      {%- elif undo and (o == undo or o == 'defaults') -%}{%- set s.on = false -%}
-      {%- endif -%}
-      {%- endfor -%}
-      {{ 'y' if s.on else 'n' }}
-      {%- endmacro -%}
-      {%- set opp = __linux_hardening_mount_opposite -%}
-      {%- set existing = __lh_mount_stats.results | selectattr('stat.exists') | map(attribute='item') | list -%}
-      {%- set running = {} -%}
-      {%- for m in (__lh_mount_findmnt.stdout | from_json).filesystems -%}
-      {%- set _ = running.update({m.target: m}) -%}
-      {%- endfor -%}
-      {%- set tab = {} -%}
-      {%- for line in (__lh_mount_fstab_raw.content | default('') | b64decode).splitlines() -%}
-      {%- set f = line.split() -%}
-      {%- if f | length >= 4 and not line.lstrip().startswith('#') -%}
-      {%- set _ = tab.update({f[1]: {'spec': f[0], 'type': f[2], 'opts': f[3].split(','),
-                                     'dump': f[4] if f | length > 4 else '0', 'pass': f[5] if f | length > 5 else '0'}}) -%}
-      {%- endif -%}
-      {%- endfor -%}
-      {%- set plan = [] -%}
-      {%- set out = [] -%}
-      {%- for p, req in __lh_mount_wanted.items() -%}
-      {%- set run = running.get(p) -%}
-      {%- set ent = tab.get(p) -%}
-      {%- set want_s = req | join(',') -%}
-      {%- set miss_run = [] -%}
-      {%- set miss_tab = [] -%}
-      {%- set new_line = namespace(v='') -%}
-      {%- if run is none and ent is none -%}
-      {%- if p in existing -%}
-      {%- if p in __linux_hardening_mount_tmpfs_paths and linux_hardening_mount_create_tmpfs | bool -%}
-      {%- set _ = out.append({'key': p ~ ' separate mount', 'expected': 'tmpfs with ' ~ want_s, 'actual': 'not a mount', 'fixable': true}) -%}
-      {%- set _ = plan.append({'path': p, 'mount_new': true, 'remount': '',
-                               'fstab_line': 'tmpfs ' ~ p ~ ' tmpfs ' ~ (['defaults'] + req) | join(',') ~ ' 0 0'}) -%}
-      {%- else -%}
-      {%- set _ = out.append({'key': p ~ ' separate mount', 'expected': 'a mount with ' ~ want_s,
-                              'actual': 'not a mount (reported only: ' ~ ('set linux_hardening_mount_create_tmpfs to mount a tmpfs' if p in __linux_hardening_mount_tmpfs_paths else 'needs a partition') ~ ')',
-                              'fixable': false}) -%}
-      {%- endif -%}
-      {%- endif -%}
-      {%- else -%}
-      {%- if run is not none -%}
-      {%- for r in req if has(run.options.split(','), r, opp) | trim != 'y' -%}{%- set _ = miss_run.append(r) -%}{%- endfor -%}
-      {%- if miss_run -%}
-      {%- set _ = out.append({'key': p ~ ' mount options (running)', 'expected': want_s, 'actual': run.options, 'fixable': true}) -%}
-      {%- endif -%}
-      {%- endif -%}
-      {%- if ent is not none -%}
-      {%- for r in req if has(ent.opts, r, opp) | trim != 'y' -%}{%- set _ = miss_tab.append(r) -%}{%- endfor -%}
-      {%- if miss_tab -%}
-      {%- set undo = req | map('extract', opp) | select('defined') | list -%}
-      {%- set kept = ent.opts | reject('in', req) | reject('in', undo) | list -%}
-      {%- set new_line.v = ent.spec ~ ' ' ~ p ~ ' ' ~ ent.type ~ ' ' ~ (kept + req) | join(',') ~ ' ' ~ ent.dump ~ ' ' ~ ent.pass -%}
-      {%- set _ = out.append({'key': p ~ ' mount options (fstab)', 'expected': want_s, 'actual': ent.opts | join(','), 'fixable': true}) -%}
-      {%- endif -%}
-      {%- elif miss_run -%}
-      {%- if run.fstype == 'tmpfs' -%}
-      {%- set new_line.v = 'tmpfs ' ~ p ~ ' tmpfs ' ~ (['defaults'] + req) | join(',') ~ ' 0 0' -%}
-      {%- set _ = out.append({'key': p ~ ' fstab entry', 'expected': 'present', 'actual': 'missing', 'fixable': true}) -%}
-      {%- else -%}
-      {%- set _ = out.append({'key': p ~ ' fstab entry', 'expected': 'present',
-                              'actual': 'missing, mounted outside fstab (reported only: a systemd unit?)', 'fixable': false}) -%}
-      {%- endif -%}
-      {%- endif -%}
-      {%- if miss_run or new_line.v -%}
-      {%- set can_remount = run is not none and (ent is not none or run.fstype == 'tmpfs') -%}
-      {%- set _ = plan.append({'path': p, 'mount_new': false, 'fstab_line': new_line.v,
-                               'remount': miss_run | join(',') if can_remount else ''}) -%}
-      {%- endif -%}
-      {%- endif -%}
-      {%- endfor -%}
-      {{ {'plan': plan, 'findings': out} | to_json }}
-
-- name: facts | Normalise result
-  ansible.builtin.set_fact:
-    __lh_mount_plan: "{{ (__lh_mount_result | from_json).plan }}"
-    __lh_mount_findings: "{{ (__lh_mount_result | from_json).findings }}"
+      {{ __lh_mount_findmnt.stdout | mount_hardening_plan(
+           __lh_mount_fstab_raw.content | default('') | b64decode,
+           __lh_mount_wanted,
+           __lh_mount_stats.results | selectattr('stat.exists') | map(attribute='item') | list,
+           __linux_hardening_mount_opposite,
+           __linux_hardening_mount_tmpfs_paths,
+           linux_hardening_mount_create_tmpfs | bool) }}

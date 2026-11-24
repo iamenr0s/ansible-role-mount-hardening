@@ -24,7 +24,7 @@
   when: __lh_mount_fstab_edit is changed
 
 - name: configure | Apply the options to the running mounts
-  ansible.builtin.command: "mount -o remount,{{ item.remount }} {{ item.path }}"  # noqa: command-instead-of-module
+  ansible.builtin.command: "mount -o {{ ('remount,' ~ item.remount) | quote }} {{ item.path | quote }}"  # noqa: command-instead-of-module
   loop: "{{ __lh_mount_plan | selectattr('remount') | list }}"
   loop_control:
     label: "{{ item.path }}"
@@ -33,7 +33,7 @@
 # raw, not command: Ansible unpacks its own module payload under /tmp, and a tmpfs mounted over /tmp hides it
 # from the module that is still running (it then fails to return its result).
 - name: configure | Mount the new tmpfs
-  ansible.builtin.raw: "mount {{ item.path }}"
+  ansible.builtin.raw: "mount {{ item.path | quote }}"
   loop: "{{ __lh_mount_plan | selectattr('mount_new') | list }}"
   loop_control:
     label: "{{ item.path }}"
