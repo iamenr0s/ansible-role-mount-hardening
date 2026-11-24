@@ -9,8 +9,12 @@ _SPEC = importlib.util.spec_from_file_location(
 mh = importlib.util.module_from_spec(_SPEC)
 _SPEC.loader.exec_module(mh)
 
+# Bandit B108 flags these as temp files; here they are only mount-point names in test data.
+TMP = "/tmp"  # nosec B108
+VAR_TMP = "/var/tmp"  # nosec B108
+SHM = "/dev/shm"  # nosec B108
 OPP = {"nodev": "dev", "nosuid": "suid", "noexec": "exec", "ro": "rw"}
-TMPFS = ["/tmp", "/dev/shm"]
+TMPFS = [TMP, SHM]
 
 
 def findmnt(*mounts):
@@ -34,8 +38,8 @@ def test_last_option_wins_and_defaults_undoes():
 
 def test_compliant_mount_needs_nothing():
     """A mount that already has every option needs no step or finding."""
-    out = run([("/dev/shm", "tmpfs", "tmpfs", "rw,nosuid,nodev,noexec")],
-              "tmpfs /dev/shm tmpfs defaults,nodev,nosuid,noexec 0 0\n", {"/dev/shm": ["nodev", "nosuid", "noexec"]})
+    out = run([(SHM, "tmpfs", "tmpfs", "rw,nosuid,nodev,noexec")],
+              f"tmpfs {SHM} tmpfs defaults,nodev,nosuid,noexec 0 0\n", {SHM: ["nodev", "nosuid", "noexec"]})
     assert out == {"plan": [], "findings": []}
 
 
@@ -51,9 +55,9 @@ def test_fstab_line_replaces_the_opposite_and_keeps_other_options():
 
 def test_running_tmpfs_without_fstab_entry_gets_one():
     """A running tmpfs missing from fstab gets an fstab line."""
-    out = run([("/dev/shm", "tmpfs", "tmpfs", "rw,nosuid")], "", {"/dev/shm": ["nodev", "nosuid"]})
-    assert out["plan"] == [{"path": "/dev/shm", "mount_new": False, "remount": "nodev",
-                            "fstab_line": "tmpfs /dev/shm tmpfs defaults,nodev,nosuid 0 0"}]
+    out = run([(SHM, "tmpfs", "tmpfs", "rw,nosuid")], "", {SHM: ["nodev", "nosuid"]})
+    assert out["plan"] == [{"path": SHM, "mount_new": False, "remount": "nodev",
+                            "fstab_line": f"tmpfs {SHM} tmpfs defaults,nodev,nosuid 0 0"}]
 
 
 def test_mount_outside_fstab_is_reported_only():
@@ -67,7 +71,7 @@ def test_mount_outside_fstab_is_reported_only():
 
 def test_missing_mount_point_is_a_tmpfs_only_when_allowed():
     """A missing mount becomes a tmpfs only when allowed."""
-    wanted = {"/tmp": ["nodev", "nosuid", "noexec"], "/var/tmp": ["nodev"]}
+    wanted = {TMP: ["nodev", "nosuid", "noexec"], VAR_TMP: ["nodev"]}
     off = run([], "", wanted)
     assert off["plan"] == []
     assert [f["fixable"] for f in off["findings"]] == [False, False]
@@ -75,13 +79,13 @@ def test_missing_mount_point_is_a_tmpfs_only_when_allowed():
     assert "needs a partition" in off["findings"][1]["actual"]
 
     on = run([], "", wanted, create=True)
-    assert on["plan"] == [{"path": "/tmp", "mount_new": True, "remount": "",
-                           "fstab_line": "tmpfs /tmp tmpfs defaults,nodev,nosuid,noexec 0 0"}]
+    assert on["plan"] == [{"path": TMP, "mount_new": True, "remount": "",
+                           "fstab_line": f"tmpfs {TMP} tmpfs defaults,nodev,nosuid,noexec 0 0"}]
 
 
 def test_absent_path_is_skipped():
     """A path that does not exist on disk is skipped."""
-    assert run([], "", {"/tmp": ["nodev"]}, existing=[]) == {"plan": [], "findings": []}
+    assert run([], "", {TMP: ["nodev"]}, existing=[]) == {"plan": [], "findings": []}
 
 
 def test_filter_is_registered():
